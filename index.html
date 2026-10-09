@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -7,6 +6,7 @@
   <title>Freunde Videos – Music Videos</title>
   <script src="https://assets.mediadelivery.net/playerjs/player-0.1.0.min.js"></script>
   <style>
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 20px;
@@ -16,14 +16,34 @@
     }
     main { max-width: 1000px; margin: auto; }
     h1 { font-size: 26px; }
-    #player {
+    #playerShell {
       width: 100%;
       aspect-ratio: 16 / 9;
+      background: black;
+      position: relative;
+    }
+    #player {
+      display: block;
+      width: 100%;
+      height: 100%;
       border: 0;
       background: black;
     }
+    #playerShell:fullscreen,
+    #playerShell:-webkit-full-screen {
+      width: 100vw;
+      height: 100vh;
+      aspect-ratio: auto;
+      background: black;
+    }
+    #playerShell:fullscreen #player,
+    #playerShell:-webkit-full-screen #player {
+      width: 100%;
+      height: 100%;
+    }
     .controls {
       display: flex;
+      flex-wrap: wrap;
       gap: 10px;
       margin: 14px 0;
     }
@@ -34,21 +54,18 @@
       border-radius: 6px;
       font-size: 15px;
     }
-    #playlist {
-      padding: 0;
-      list-style: none;
-    }
+    #playlist { padding: 0; list-style: none; }
     #playlist li {
       padding: 12px;
       border-bottom: 1px solid #444;
       cursor: pointer;
       overflow-wrap: anywhere;
     }
-    #playlist li.active {
-      background: #333;
-      font-weight: bold;
-    }
+    #playlist li.active { background: #333; font-weight: bold; }
     #status { color: #ccc; }
+    .hint { color: #bbb; font-size: 14px; line-height: 1.4; }
+    body.shell-fullscreen { padding: 0; }
+    body.shell-fullscreen main { max-width: none; }
   </style>
 </head>
 <body>
@@ -57,20 +74,25 @@
   <p>Music Videos – automatische Wiedergabe</p>
 
   <p id="status">Videoliste wird geladen …</p>
-  <iframe
-    id="player"
-    src="about:blank"
-    title="Freunde Videos Player"
-    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-    allowfullscreen>
-  </iframe>
 
-  <h2 id="currentTitle">Video</h2>
-  <div class="controls">
-    <button id="previous">⏮ Zurück</button>
-    <button id="next">Weiter ⏭</button>
+  <div id="playerShell">
+    <iframe
+      id="player"
+      src="about:blank"
+      title="Freunde Videos Player"
+      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+      allowfullscreen>
+    </iframe>
   </div>
 
+  <div class="controls">
+    <button id="fullscreen" type="button">⛶ Vollbild</button>
+    <button id="previous" type="button">⏮ Zurück</button>
+    <button id="next" type="button">Weiter ⏭</button>
+  </div>
+  <p class="hint">Wenn möglich, starte den Vollbildmodus mit „Vollbild“, bevor du die Wiedergabeliste laufen lässt. Auf manchen Smartphones kann der Browser den Vollbildmodus beim Video-Wechsel trotzdem beenden. Zum Beenden: Esc oder erneut „Vollbild“ drücken, sofern dein Browser dies unterstützt.</p>
+
+  <h2 id="currentTitle">Video</h2>
   <h2>Wiedergabeliste</h2>
   <ol id="playlist"></ol>
 </main>
@@ -78,23 +100,55 @@
 <script>
 const LIBRARY_ID = "774462";
 const playerFrame = document.getElementById("player");
+const playerShell = document.getElementById("playerShell");
+const fullscreenButton = document.getElementById("fullscreen");
 const statusText = document.getElementById("status");
 const titleText = document.getElementById("currentTitle");
 const playlistElement = document.getElementById("playlist");
 
 let videos = [];
 let currentIndex = 0;
-let player = null;
-let playerReady = false;
 let loadNumber = 0;
 
 function showStatus(message) {
   statusText.textContent = message;
 }
 
+function isShellFullscreen() {
+  return document.fullscreenElement === playerShell ||
+         document.webkitFullscreenElement === playerShell;
+}
+
+async function toggleFullscreen() {
+  try {
+    if (isShellFullscreen()) {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      return;
+    }
+
+    if (playerShell.requestFullscreen) {
+      await playerShell.requestFullscreen();
+    } else if (playerShell.webkitRequestFullscreen) {
+      playerShell.webkitRequestFullscreen();
+    } else {
+      showStatus("Dieser Browser unterstützt für diesen Bereich keinen Vollbildmodus. Bitte nutze das Vollbildsymbol im Bunny-Player.");
+    }
+  } catch (error) {
+    showStatus("Vollbild konnte nicht aktiviert werden. Bitte nutze das Vollbildsymbol im Bunny-Player.");
+  }
+}
+
+function updateFullscreenButton() {
+  fullscreenButton.textContent = isShellFullscreen() ? "⛶ Vollbild beenden" : "⛶ Vollbild";
+}
+
+document.addEventListener("fullscreenchange", updateFullscreenButton);
+document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+fullscreenButton.addEventListener("click", toggleFullscreen);
+
 function renderPlaylist() {
   playlistElement.replaceChildren();
-
   videos.forEach((video, index) => {
     const item = document.createElement("li");
     item.textContent = `${index + 1}. ${video.title || "Video " + (index + 1)}`;
@@ -105,10 +159,12 @@ function renderPlaylist() {
 }
 
 function playVideo(index, autoplay = true) {
-  if (index < 0 || index >= videos.length) return;
+  if (index < 0 || index >= videos.length) {
+    if (index >= videos.length) showStatus("Alle Videos wurden abgespielt.");
+    return;
+  }
 
   currentIndex = index;
-  playerReady = false;
   const thisLoad = ++loadNumber;
   const video = videos[index];
 
@@ -116,45 +172,28 @@ function playVideo(index, autoplay = true) {
   renderPlaylist();
   showStatus("Video wird geladen …");
 
-  playerFrame.src =
-    `https://player.mediadelivery.net/embed/${LIBRARY_ID}/${encodeURIComponent(video.guid)}`;
-
-  player = null;
-
   playerFrame.onload = () => {
     if (thisLoad !== loadNumber) return;
-
     try {
-      player = new playerjs.Player(playerFrame);
-
+      const player = new playerjs.Player(playerFrame);
       player.on("ready", () => {
         if (thisLoad !== loadNumber) return;
-        playerReady = true;
         showStatus(`Video ${index + 1} von ${videos.length}`);
-
-        if (autoplay) {
-          player.play();
-        }
+        if (autoplay) player.play();
       });
-
       player.on("ended", () => {
-        if (thisLoad === loadNumber) {
-          playVideo(currentIndex + 1, true);
-        }
+        if (thisLoad === loadNumber) playVideo(currentIndex + 1, true);
       });
     } catch (error) {
       showStatus("Player konnte nicht gestartet werden. Bitte erneut versuchen.");
     }
   };
+
+  playerFrame.src = `https://player.mediadelivery.net/embed/${LIBRARY_ID}/${encodeURIComponent(video.guid)}`;
 }
 
-document.getElementById("previous").addEventListener("click", () => {
-  playVideo(currentIndex - 1, true);
-});
-
-document.getElementById("next").addEventListener("click", () => {
-  playVideo(currentIndex + 1, true);
-});
+document.getElementById("previous").addEventListener("click", () => playVideo(currentIndex - 1, true));
+document.getElementById("next").addEventListener("click", () => playVideo(currentIndex + 1, true));
 
 fetch("./bunny-videos.json")
   .then(response => {
@@ -163,9 +202,6 @@ fetch("./bunny-videos.json")
   })
   .then(data => {
     videos = Array.isArray(data) ? data : [data];
-
-    // Älteste Upload-Daten zuerst. Bei identischen Zeitstempeln
-    // bleibt die Reihenfolge der gelieferten Liste erhalten.
     videos = videos
       .map((video, originalIndex) => ({ video, originalIndex }))
       .sort((a, b) => {
@@ -176,16 +212,12 @@ fetch("./bunny-videos.json")
       .map(entry => entry.video)
       .filter(video => video.guid);
 
-    if (videos.length === 0) {
-      throw new Error("Keine Videos mit gültiger ID gefunden");
-    }
-
+    if (videos.length === 0) throw new Error("Keine Videos mit gültiger ID gefunden");
     showStatus(`${videos.length} Videos geladen`);
     playVideo(0, true);
   })
   .catch(error => {
-    showStatus("Fehler: " + error.message +
-      ". Bitte prüfen, ob bunny-videos.json im Repository liegt.");
+    showStatus("Fehler: " + error.message + ". Bitte prüfen, ob bunny-videos.json im Repository liegt.");
   });
 </script>
 </body>
