@@ -188,11 +188,8 @@ function playVideo(index, autoplay = true) {
       showStatus("Player konnte nicht gestartet werden. Bitte erneut versuchen.");
     }
   };
-const autoplayParam = autoplay ? "true" : "false";
 
-playerFrame.src =
-  `https://player.mediadelivery.net/embed/${LIBRARY_ID}/${encodeURIComponent(video.guid)}` +
-  `?autoplay=${autoplayParam}&playsinline=true&nativeHls=auto`;
+  playerFrame.src = `https://player.mediadelivery.net/embed/${LIBRARY_ID}/${encodeURIComponent(video.guid)}`;
 }
 
 document.getElementById("previous").addEventListener("click", () => playVideo(currentIndex - 1, true));
