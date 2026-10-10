@@ -195,7 +195,7 @@ const autoplayParam = autoplay ? "true" : "false";
 
 playerFrame.src =
   `https://player.mediadelivery.net/embed/${LIBRARY_ID}/${encodeURIComponent(video.guid)}` +  
-`?autoplay=${autoplayParam}&muted=false&playsinline=true&nativeHls=auto`;
+`?autoplay=${autoplayParam}&muted=${autoplayParam}&playsinline=true&nativeHls=auto`;
 }
 
 document.getElementById("previous").addEventListener("click", () => playVideo(currentIndex - 1, true));
