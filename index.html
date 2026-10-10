@@ -21,17 +21,13 @@
       aspect-ratio: 16 / 9;
       background: black;
       position: relative;
-    }    
-#player {
-  display: block;
-  width: 100%;
-  height: 56.25vw;
-  min-height: 180px;
-  max-height: 562px;
-  border: 0;
-  background: black;
-}
-
+    }
+    #player {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: black;
     }
     #playerShell:fullscreen,
     #playerShell:-webkit-full-screen {
@@ -152,9 +148,7 @@ document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 fullscreenButton.addEventListener("click", toggleFullscreen);
 
 function renderPlaylist() {
-  while (playlistElement.firstChild) {
-  playlistElement.removeChild(playlistElement.firstChild);
-}
+  playlistElement.replaceChildren();
   videos.forEach((video, index) => {
     const item = document.createElement("li");
     item.textContent = `${index + 1}. ${video.title || "Video " + (index + 1)}`;
