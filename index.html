@@ -148,7 +148,9 @@ document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 fullscreenButton.addEventListener("click", toggleFullscreen);
 
 function renderPlaylist() {
-  playlistElement.replaceChildren();
+  while (playlistElement.firstChild) {
+  playlistElement.removeChild(playlistElement.firstChild);
+}
   videos.forEach((video, index) => {
     const item = document.createElement("li");
     item.textContent = `${index + 1}. ${video.title || "Video " + (index + 1)}`;
